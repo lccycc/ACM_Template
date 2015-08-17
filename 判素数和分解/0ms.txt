@@ -1,0 +1,149 @@
+Source Code
+
+Problem: 1811  User: SpellBreaker 
+Memory: 700K  Time: 0MS 
+Language: C++  Result: Accepted 
+
+Source Code 
+#include<stdio.h>
+#include<stdlib.h>
+#include<cmath>
+typedef unsigned long long U64;
+typedef unsigned int U32;
+const U32 MAX_INDEEP = 10000;
+const U32 TABLE_SIZE = 131071;
+const U32 MAX_FORCE = 500;
+U32 sqrt_table[TABLE_SIZE] = {0};
+inline U64 gcd(U64 a, U64 b)
+{
+	U64 t;
+	while (b != 0)
+	{
+		t = a % b;
+		a = b;
+		b = t;
+	}
+	return a;
+}
+U32 try_ana(U64 N)
+{
+	U32 sqrt_n = (U32) sqrt((long double) N);
+	U32 P1 = sqrt_n, Q2 = 1, Q1 = N - (U64) P1*P1;
+	U32 B, P, Q, step = 0;
+	if (Q1 == 0)return P1;
+	while (sqrt_table[Q1 % TABLE_SIZE] != Q1)
+	{
+		B = (sqrt_n + P1) / Q1;
+		P = B * Q1 - P1;
+		Q = Q2 + B * (P1 - P);
+		P1 = P;
+		Q2 = Q1;
+		Q1 = Q;
+	}
+	U32 sqrt_Qi = (U32) sqrt((long double) Q1);
+	B = (sqrt_n - P1) / sqrt_Qi;
+	P1 = B * sqrt_Qi + P;
+	Q2 = sqrt_Qi;
+	Q1 = (N - (U64) P1 * P1) / Q2;
+	P = P1;
+	P1 = 0;
+	while (P != P1 && step < MAX_INDEEP)
+	{
+		P1 = P;
+		B = (sqrt_n + P1) / Q1;
+		P = B * Q1 - P1;
+		Q = Q2 + B * (P1 - P);
+		Q2 = Q1;
+		Q1 = Q;
+		step++;
+	}
+	return gcd(N, P);
+}
+U32 squfof(U64 N)
+{
+	U32 k, t = 0;
+	for (k = 1; t == 0 || t == 1; k++)
+	{
+		t = gcd(try_ana(k * N), N);
+	}
+	return t;
+}
+inline U64 mul_mod(U64 a, U64 b, U64 n)
+{
+	U64 res = 0;
+	while (b != 0)
+	{
+		if (b & 1)
+		{
+			res += a;
+			if (res > n)
+				res -= n;
+		}
+		a = a << 1;
+		if (a > n)
+			a -= n;
+		b >>= 1;
+	}
+	return res;
+}
+U64 pow_mod(U64 a, U64 b, U64 n)
+{
+	U64 res = 1;
+	while (b != 0)
+	{
+		if (b & 1)
+			res = mul_mod(res, a, n);
+		a = mul_mod(a, a, n);
+		b >>= 1;
+	}
+	return res;
+}
+bool miller_rabin(U64 a, U64 n)
+{
+	U64 r = 0, s = n - 1;
+	while (!(s & 1))
+	{
+		s >>= 1;
+		r++;
+	}
+	U64 x = pow_mod(a, s, n);
+	if (x == 1) return true;
+	while (r--)
+	{
+		if (x == n - 1) return true;
+		x = mul_mod(x, x, n);
+	}
+	return false;
+}
+U64 min_factor(U64 n)
+{
+	if (miller_rabin(37, n)) return n;
+	U64 p = squfof(n);
+	U64 p1 = min_factor(p), p2 = min_factor(n / p);
+	return p1 < p2 ? p1 : p2;
+}
+U64 work(U64 n)
+{
+	if (n % 2 == 0)return 2;
+	for (int i = 3; i <= MAX_FORCE; i += 2)
+		if (n % i == 0)return i;
+	return min_factor(n);
+}
+int main()
+{
+	U64 cas, n, p;
+	for (U32 i = 0; i < (1 << 16); i++)
+		sqrt_table[i * i % TABLE_SIZE] = i * i;
+	scanf("%I64d", &cas);
+	while (cas--)
+	{
+		scanf("%I64d", &n);
+		p = work(n);
+		if (p == n)
+			printf("Prime\n");
+		else
+			printf("%I64d\n", p);
+	}
+	return 0;
+}
+

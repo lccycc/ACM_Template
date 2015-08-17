@@ -1,0 +1,150 @@
+#include <stdio.h>
+#include <math.h>
+
+const int MAXN = 510;
+
+struct TPoint
+{
+    double x, y;
+    TPoint operator-(TPoint &a)
+    {
+        TPoint p1;
+        p1.x = x - a.x;
+        p1.y = y - a.y;
+        return p1;
+    }
+};
+
+struct TCircle
+{
+    double r;
+    TPoint centre;
+};
+
+struct TTriangle
+{
+    TPoint t[3];
+};
+
+TCircle c;
+TPoint pt[MAXN];
+
+int n;
+
+double distance(TPoint p1, TPoint p2)
+{
+    TPoint p3;
+    p3.x = p2.x - p1.x;
+    p3.y = p2.y - p1.y;
+    return sqrt(p3.x * p3.x + p3.y * p3.y);
+}
+
+double triangleArea(TTriangle t)
+{
+    TPoint p1, p2;
+    p1 = t.t[1] - t.t[0];
+    p2 = t.t[2] - t.t[0];
+    return fabs(p1.x * p2.y - p1.y * p2.x) / 2;
+}
+
+TCircle circumcircleOfTriangle(TTriangle t)
+{
+    TCircle tmp;
+    double a, b, c, c1, c2;
+    double xA, yA, xB, yB, xC, yC;
+    a = distance(t.t[0], t.t[1]);
+    b = distance(t.t[1], t.t[2]);
+    c = distance(t.t[2], t.t[0]);
+
+    tmp.r = a * b * c / triangleArea(t) / 4;
+    
+    xA = t.t[0].x; yA = t.t[0].y;
+    xB = t.t[1].x; yB = t.t[1].y;
+    xC = t.t[2].x; yC = t.t[2].y;
+    c1 = (xA * xA + yA * yA - xB * xB - yB * yB) / 2;
+    c2 = (xA * xA + yA * yA - xC * xC - yC * yC) / 2;
+    
+    tmp.centre.x = (c1 * (yA - yC) - c2 * (yA - yB)) / 
+        ((xA - xB) * (yA - yC) - (xA - xC) * (yA - yB)); 
+    tmp.centre.y = (c1 * (xA - xC) - c2 * (xA - xB)) / 
+        ((yA - yB) * (xA - xC) - (yA - yC) * (xA - xB)); 
+    
+    return tmp;     
+}
+
+
+TCircle Circle(int tce,TTriangle ce)
+{
+    TCircle ret;
+    if (tce==0)
+    {
+        ret.r=-1;
+    }
+    else if (tce==1)
+    {
+        ret.centre=ce.t[0];
+        ret.r=0;
+    }
+    else if (tce==2)
+    {
+        ret.centre.x=(ce.t[0].x+ce.t[1].x)/2;
+        ret.centre.y=(ce.t[0].y+ce.t[1].y)/2;
+        ret.r=distance(ce.t[0],ce.t[1])/2;
+    }
+    else if (tce==3)
+    {
+        ret=circumcircleOfTriangle(ce);
+    }
+
+    return ret;
+}
+
+inline void minCircle(int t,int tce,TTriangle ce)
+{
+    int i,j;
+    c=Circle(tce,ce);
+
+    if (tce==3)
+    {
+        return;
+    }
+
+    for (i=1;i<=t;++i)
+    {
+        if (distance(pt[i],c.centre)>c.r)
+        {
+            ce.t[tce]=pt[i];
+            minCircle(i-1,tce+1,ce);
+            TPoint tp=pt[i];
+            for (j=i;j>=2;--j)
+            {
+                pt[j]=pt[j-1];
+            }
+            pt[1]=tp;
+        }
+    }
+}
+
+int main()
+{
+    int i;
+    while (scanf("%d",&n)!=EOF)
+    {
+        if (n==0)
+        {
+            break;
+        }
+
+        for (i=1;i<=n;++i)
+        {
+            scanf("%lf%lf",&pt[i].x,&pt[i].y);
+        }
+
+        TTriangle ce;
+        minCircle(n,0,ce);
+
+        printf("%.2lf\n",0.5+c.r);
+
+    }
+    return 0;
+}

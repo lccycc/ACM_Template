@@ -1,0 +1,393 @@
+Source Code
+
+Problem: 3580  User: mickeyandkaka 
+Memory: 4360K  Time: 454MS 
+Language: G++  Result: Accepted 
+
+Source Code 
+#include <cstdio>
+#include <cstring>
+#include <algorithm>
+#include <iostream>
+using namespace std;
+#define mp(x,y)    (make_pair((x),(y)))
+#define clr(a,b)    (memset(a,b,sizeof(a)))
+typedef pair<int,int>   pii;
+
+const int INF =0x3f3f3f3f;
+
+int viscnt;
+int n,m;
+
+#define keytree root->ch[1]->ch[0]
+struct node
+{
+    int size,rev;
+    int key,delta,minv;
+    node *ch[2], *pre;
+
+    void reverse()
+    {
+        if (size == 0) return;
+        rev ^= 1;
+        swap(ch[0], ch[1]);
+    }
+    void add(int v)
+    {
+        if(size == 0)   return;
+        delta+=v;
+        key+=v;
+        minv+=v;
+    }
+    void update()
+    {
+        size = ch[0]->size + ch[1]->size + 1;
+        minv = min(key,min(ch[0]->minv,ch[1]->minv));
+    }
+    void pushdown()
+    {
+        if (rev)
+        {
+            ch[0]->reverse();
+            ch[1]->reverse();
+            rev = 0;
+        }
+        if(delta)
+        {
+            ch[0]->add(delta);
+            ch[1]->add(delta);
+            delta = 0;
+        }
+    }
+};
+
+node tree[200003], *sta[200001];
+node* hash[200001];
+
+int data[200001];
+
+class SPLAY
+{
+public:
+    node *null, *root;
+    int top,cnt;
+
+    void init()
+    {
+        top = cnt = 0;
+        null = newnode(INF), null->size = 0;
+        null->ch[0] = null->ch[1] = null->pre = null;
+        root = newnode(INF), root->ch[1] = newnode(INF);
+        root->ch[1]->pre = root;
+        root->update();
+    }
+
+    node* newnode(int x)
+    {
+        node *p;
+        if (top) p = sta[top --];
+        else p = &tree[cnt++];
+        p->key = p->minv = x;
+        p->size = 1;
+        p->delta = p->rev = 0;
+        p->ch[0] = p->ch[1] = p->pre = null;
+        return p;
+    }
+
+    void Rotate(node *x, int c)
+    {
+        node *y = x->pre;
+        y->pushdown(), x->pushdown();
+        y->ch[! c] = x->ch[c], x->pre = y->pre;
+        if (x->ch[c] != null) x->ch[c]->pre = y;
+        if (y->pre != null) y->pre->ch[y == y->pre->ch[1]] = x;
+        y->pre = x, x->ch[c] = y, y->update();
+        if (root == y) root = x;
+    }
+
+    void splay(node *x, node *f)
+    {
+        for (x->pushdown(); x->pre != f; )
+            if (x->pre->pre == f)
+                Rotate(x, x == x->pre->ch[0]);
+            else
+            {
+                node *y = x->pre, *z = y->pre;
+                if (y == z->ch[0])
+                    if (x == y->ch[0])
+                        Rotate(y, 1), Rotate(x, 1);
+                    else
+                        Rotate(x, 0), Rotate(x, 1);
+                else if (x == y->ch[1])
+                    Rotate(y, 0), Rotate(x, 0);
+                else
+                    Rotate(x, 1), Rotate(x, 0);
+            }
+        x->update();
+    }
+
+    void select(int k, node *f)
+    {
+        for (node *now = root; ; )
+        {
+            now->pushdown();
+            int tmp = now->ch[0]->size;
+            if (k == tmp)
+            {
+                splay(now, f);
+                return;
+            }
+            now = now->ch[k > tmp];
+            if (k > tmp) k -= tmp + 1;
+        }
+    }
+
+    void maketree(int l, int r)
+    {
+        init();
+        keytree = build(l, r);
+        keytree->pre = root->ch[1];
+        splay(keytree, null);
+    }
+
+    node *build(int l, int r)
+    {
+        if (l > r) return null;
+        int mid = (l + r) >> 1;
+        node *p = newnode(data[mid]);
+        hash[data[mid]] = p;
+        p->ch[0] = build(l, mid - 1);
+        p->ch[1] = build(mid + 1, r);
+        if (p->ch[0] != null)
+            p->ch[0]->pre = p;
+        if (p->ch[1] != null)
+            p->ch[1]->pre = p;
+        p->update();
+        return p;
+    }
+
+    void insert(int x, int key)
+    {
+        select(x, null);
+        select(x + 1, root);
+        keytree = newnode(key);
+        keytree->pre = root->ch[1];
+        root->ch[1]->update();
+        splay(keytree, null);
+    }
+
+    void insert(int x, int l, int r)
+    {
+        select(x, null);
+        select(x + 1, root);
+        keytree = build(l, r);
+        keytree->pre = root->ch[1];
+        root->ch[1]->update();
+        splay(keytree, null);
+    }
+
+    void erase(node *x)
+    {
+        if (x == null) return;
+        erase(x->ch[0]);
+        erase(x->ch[1]);
+        sta[++top] = x;
+    }
+
+    void dele(int x, int y)//del[x,y]
+    {
+        select(x - 1, null);
+        select(y + 1, root);
+        erase(keytree);
+        keytree = null;
+        root->ch[1]->update();
+        root->update();
+    }
+
+    /*
+     * 删除X位置的数。
+     * "DELETE(2)" on {1, 2, 3, 4, 5} results in {1, 3, 4, 5}
+     * 做法：找到并将其升至根节点，调用deleroot();
+     */
+    void dele(int x)
+    {
+        select(x, null);
+        deleroot();
+    }
+    /*
+     * 删除某节点
+     * 做法：将其升至根节点，调用deleroot()
+     */
+    void dele(node* t)
+    {
+        splay(t, null);
+        deleroot();
+    }
+    /*
+     * 删除根节点，以其右子树的最左边节点替换之
+     */
+    void deleroot()
+    {
+        node *oldRoot = root;
+        root = root->ch[1];
+        root->pre = null;
+        select(0, null);
+        root->ch[0] = oldRoot->ch[0];
+        root->ch[0]->pre = root;
+        root->update();
+        sta[++top] = oldRoot;
+    }
+
+    void reverse(int l, int r)//[x,y]
+    {
+        select(l - 1, null);
+        select(r + 1, root);
+        keytree->reverse();
+    }
+
+    int query(int key)
+    {
+        splay(hash[key], null);
+        int ans = root->ch[0]->size;
+        return ans;
+    }
+
+    void debug()
+    {
+        vis(root);
+    }
+    void vis(node* t)
+    {
+        if (t == null) return;
+        t->pushdown();
+        vis(t->ch[0]);
+        if(t->key !=-INF)
+        {
+            viscnt++;
+            printf("%d%c",t->key,viscnt== n?'\n':' ');
+        }
+        vis(t->ch[1]);
+        t->update();
+    }
+
+    void add(int l,int r,int v)
+    {
+        select(l-1,null);
+        select(r+1,root);
+        keytree->add(v);
+        splay(keytree,null);
+    }
+
+    void revolve(int x, int y, int d)
+    {
+        int len = y - x + 1;
+        d = (d % len + len) % len;
+        if (d == 0) return;
+        if (d == 1)
+        {
+            dele(y);
+            insert(x - 1, sta[top]->key);
+        }
+        else
+        {
+            select(y - d + 1, null);
+            select(y + 1, root);
+            select(x - 1, root);
+            select(y, root->ch[1]);
+            node *p = root->ch[0]->ch[1];
+            root->ch[0]->ch[1] = null;
+            root->ch[0]->update();
+            keytree->ch[1] = p;
+            p->pre = keytree;
+            splay(p, null);
+        }
+    }
+
+    int getmin(int l,int r)
+    {
+        select(l - 1, null);
+        select(r + 1, root);
+        return keytree->minv;
+    }
+};
+
+
+inline int getint()
+{
+    char ch = getchar();
+    for ( ; '0' > ch || ch > '9'; ch = getchar())
+        if (ch == '-') break;
+    int res = 0, flag = 0;
+    if (ch == '-') ch = getchar(), flag = 1;
+    for ( ; '0' <= ch && ch <= '9'; ch = getchar())
+        res = res * 10 + int(ch) - 48;
+    return (flag) ? -res : res;
+}
+inline void write(int a){  //用于正整数
+    if(a<0) {putchar('-'),a=-a;}
+  if(a>9)write(a/10);
+  putchar(a%10+'0');
+}
+
+char str[20];
+int T,x,y,c;
+
+int main()
+{
+    n=getint();
+    for(int i=1; i<=n; i++)
+        data[i] = getint();
+
+    SPLAY ob;
+    ob.maketree(1,n);
+
+    m=getint();
+    for(int i=1; i<=m; i++)
+    {
+        scanf("%s",str);
+        switch(str[0])
+        {
+        case 'A':
+        {
+            x=getint(),y=getint(),c=getint();
+            ob.add(x,y,c);
+            break;
+        }
+        case 'I':
+        {
+            x=getint(),c=getint();
+            ob.insert(x,c);
+            break;
+        }
+        case 'D':
+        {
+            x=getint();
+            ob.dele(x);
+            break;
+        }
+        case 'M':
+        {
+            x=getint(),y=getint();
+            write(ob.getmin(x,y));
+            putchar(10);
+            break;
+        }
+        default :
+        {
+            if(str[3] == 'E')
+            {
+                x=getint(),y=getint();
+                ob.reverse(x,y);
+            }
+            else
+            {
+                x=getint(),y=getint(),c=getint();
+                ob.revolve(x,y,c);
+            }
+        }
+        }
+    }
+
+    return 0;
+}
+
